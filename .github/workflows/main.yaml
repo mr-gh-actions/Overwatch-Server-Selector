@@ -18,7 +18,7 @@ jobs:
         with:
           path: .
       - name: Uploading to Workflow
-      - uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2
         with:
           name: Overwatch-Server-Selector.exe
           path: dist
