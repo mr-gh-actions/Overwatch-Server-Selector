@@ -1,19 +1,24 @@
+import time
 from tkinter import *
 from tkinter.font import Font
+from tkinter import ttk, filedialog
 import win32com.shell.shell as shell
-from subprocess import Popen, CREATE_NEW_CONSOLE, PIPE, STARTUPINFO, STARTF_USESHOWWINDOW, SW_HIDE
+from subprocess import call, Popen, CREATE_NEW_CONSOLE, PIPE, run, STARTUPINFO, STARTF_USESHOWWINDOW, SW_HIDE
 from PIL import ImageTk, Image
 from io import BytesIO
 import pic2str
 import base64
-from os.path import exists
-from ping3 import ping
+from os.path import exists, isdir
+from os import getenv, path, mkdir, listdir, system, linesep
 import webbrowser
+import socket
+import threading
+import requests
 
 # Create window object
 app = Tk()
 # Set Properties
-app.title('MINA Overwatch 2 Server Selector Beta Version 3.0')
+app.title('MINA Overwatch 2 Server Selector')
 app.resizable(False, False)
 app.geometry('500x500')
 app.configure(bg='#282828')
@@ -58,27 +63,38 @@ button_img_Default = ImageTk.PhotoImage(Image.open(image_UNBLOCK_ALL_MAIN))
 # Add font
 futrabook_font = Font(family="Futura PT Demi", size=10)
 
-# Ip ranges
-Ip_ranges_ME = "157.175.0.0-157.175.255.255,15.185.0.0-15.185.255.255,15.184.0.0-15.184.255.255"
-Ip_ranges_EU1 = "5.42.184.0-5.42.191.255,5.42.168.0-5.42.175.255"
-Ip_ranges_EU2 = "35.198.64.0-35.198.191.255,34.107.0.0-34.107.127.255,35.195.0.0-35.195.255.255,35.246.0.0-35.246.255.255,35.228.0.0-35.228.255.255,34.89.128.0-34.89.255.255,35.242.128.0-35.242.255.255,34.159.0.0-34.159.255.255,34.141.0.0-34.141.127.255,34.88.0.0-34.88.255.255"
-Ip_ranges_NA_East = "35.236.192.0-35.236.255.255,35.199.0.0-35.199.63.255,34.86.0.0-34.86.255.255,35.245.0.0-35.245.255.255,35.186.160.0-35.186.191.255,34.145.128.0-34.145.255.255,34.150.128.0-34.150.255.255,34.85.128.0-34.85.255.255"
-Ip_ranges_NA_central = "24.105.40.0-24.105.47.255"
-Ip_ranges_NA_West1 = "24.105.8.0-24.105.15.255"
-Ip_ranges_NA_West2 = "35.247.0.0-35.247.127.255,35.236.0.0-35.236.127.255,35.235.70.0-35.235.130.255,34.102.0.0-34.102.127.255,34.94.0.0-34.94.255.255"
-Ip_ranges_NA_West3 = "34.19.0.0-34.19.127.255,34.82.0.0-34.83.255.255,34.105.0.0-34.105.127.255,34.118.192.0-34.118.199.255,34.127.0.0-34.127.127.255,34.145.0.0-34.145.127.255,34.157.112.0-34.157.119.255,34.157.240.0-34.157.247.255,34.168.0.0-34.169.255.255,35.185.192.0-35.185.255.255,35.197.0.0-35.197.127.255,35.199.144.0-35.199.159.255,35.199.160.0-35.199.191.255,35.203.128.0-35.203.191.255,35.212.128.0-35.212.255.255,35.220.48.0-35.220.55.255,35.227.128.0-35.227.191.255,35.230.0.0-35.230.127.255,35.233.128.0-35.233.255.255,35.242.48.0-35.242.55.255,35.243.32.0-35.243.39.255,35.247.0.0-35.247.127.255"
-Ip_ranges_AS_Korea = "34.64.0.0-34.64.255.255,117.52.0.0-117.52.255.255"
-Ip_ranges_AS_1 = "104.198.0.0-104.198.255.255,34.84.0.0-34.84.255.255,34.85.0.0-34.85.255.255,35.200.0.0-35.200.255.255,35.221.0.0-35.221.255.255,34.146.0.0-34.146.255.255,117.52.0.0-117.52.255.255,121.254.0.0-121.254.255.255,5.42.0.0-5.42.255.255,34.87.0.0-34.87.255.255,34.126.0.0-34.126.255.255,35.187.0.0-35.187.255.255,37.244.42.0-37.244.42.255,34.142.0.0-34.143.255.255"
-Ip_ranges_AS_Singapore1 = "34.124.0.0-34.124.255.255,34.124.42.0-34.124.43.255,34.142.128.0-34.142.255.255,35.185.176.0-35.185.191.255,35.186.144.0-35.186.159.255,35.247.128.0-35.247.191.255,34.87.0.0-34.87.191.255,34.143.128.0-34.143.255.255,34.124.128.0-34.124.255.255,34.126.64.0-34.126.191.255,35.240.128.0-35.240.255.255,35.198.192.0-35.198.255.255"
-Ip_ranges_AS_Singapore2 = "34.21.128.0-34.21.255.255,34.87.0.0-34.87.191.255,34.104.58.0-34.104.59.255,34.124.41.0-34.124.42.255,34.124.128.0-34.124.255.255,34.126.64.0-34.126.191.255,34.157.82.0-34.157.83.255,34.157.88.0-34.157.89.255,34.157.210.0-34.157.211.255,35.187.224.0-35.187.255.255,35.197.128.0-35.197.159.255,35.198.192.0-35.198.255.255,35.213.128.0-35.213.191.255,35.220.24.0-35.220.25.255,35.234.192.0-35.234.207.255,35.240.128.0-35.240.255.255,35.242.24.0-35.242.25.255,35.247.128.0-35.247.191.255"
-Ip_ranges_AS_Taiwan = "5.42.160.0-5.42.160.255"
-Ip_ranges_AS_Japan = "34.85.0.0-34.85.127.255,34.84.0.0-34.84.255.255,35.190.224.0-35.190.239.255,35.194.96.0-35.194.255.255,35.221.64.0-35.221.255.255,34.146.0.0-34.146.255.255"
-Ip_ranges_oc = "37.244.42.0-37.244.42.255"
-Ip_ranges_SA = "34.151.0.0-34.151.255.255,34.95.128.0-34.95.255.255,35.198.0.0-35.198.63.255,35.247.192.0-35.247.255.255,35.199.64.0-35.199.127.255"
+# Global variables
+localappdata_path = getenv('APPDATA') + '\\OverwatchServerBlocker'
+ip_version_path = localappdata_path + '\\IP_version.txt'
+overwatch_path = 'C:\\Program Files (x86)\\Overwatch\\_retail_\\Overwatch.exe'
+ip_version_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/IP_version.txt'
+Ip_ranges_ME_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_ME.txt'
+Ip_ranges_EU_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_EU.txt'
+Ip_ranges_NA_East_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_NA_East.txt'
+Ip_ranges_NA_central_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_NA_central.txt'
+Ip_ranges_NA_West_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_NA_West.txt'
+Ip_ranges_AS_Korea_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_AS_Korea.txt'
+Ip_ranges_AS_1_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_AS_1.txt'
+Ip_ranges_AS_Singapore_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_AS_Singapore.txt'
+Ip_ranges_AS_Taiwan_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_AS_Taiwan.txt'
+Ip_ranges_AS_Japan_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_AS_Japan.txt'
+Ip_ranges_Australia_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_Australia.txt'
+Ip_ranges_Brazil_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/Ip_ranges_Brazil.txt'
+BlockingConfig_url = 'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector-1/main/ip_lists/BlockingConfig.txt'
 
+updating_state = False
+internet_initialization = False
+sorter_initialization = False
+checkForUpdate_initialization = False
+tunnel_option = False
+isUpdated = ''
+internetConnection = ''
+update_time = 0
 
-# NA CENTRAL CAN'T QUEUE
-#
+# IP Ranges
+Ip_ranges_dic = {}
+blockingConfigDic = {}
+
 
 # Functions
 def iconMaker():  # Used to check if there is an icon in the same directory or not it will create the icon if not.
@@ -90,33 +106,226 @@ def iconMaker():  # Used to check if there is an icon in the same directory or n
         app.iconbitmap("LOGO_SMALL_APPLICATION.ico")
 
 
-def pingServers():  # Return ping to all regions
-    server_list = ["24.105.30.129", "24.105.62.129", "185.60.114.159", "au-syd-speedtest01.urlnetworks.net"]
-    ping_list = []
-    for ip in server_list:
-        result = ping(ip, unit="ms")
-        ping_list.append(int(result))
-    na_west_ping = str(ping_list[0])
-    na_central_ping = str(ping_list[1])
-    eu_ping = str(ping_list[2])
-    australia_ping = str(ping_list[3])
-    pingtext = "NA West: " + na_west_ping + " ms" + " | NA Central: " + na_central_ping + " ms" + " | EU: " \
-               + eu_ping + " ms" + " | AU_Syd: " + australia_ping + " ms"
-    pingLabel.config(text=pingtext, fg='#26ef4c')
-    return na_west_ping, na_central_ping, eu_ping
+def ipSorter():  # Store ip ranges from Ip_ranges_....txt into Ip_ranges dictionary
+    global sorter_initialization
+    if exists(localappdata_path) and exists(ip_version_path):  # If those paths exists it means user updated
+        controlButtons('disabled')
+        servers_files = listdir(localappdata_path)
+        for server in servers_files:
+            if server.startswith("Ip_ranges"):
+                blockingConfig(path.splitext(server)[0])
+                server_path = localappdata_path + '\\' + server
+                with open(server_path, "r") as reader:
+                    temp_list = []
+                    for line in reader.readlines():
+                        line = line.strip('\n')
+                        if len(line) > 5:
+                            server = path.splitext(server)[0]
+                            temp_list.append(line)
+                            temp_list.append(',')
+                    Ip_ranges_dic[server] = temp_list
+        update_text = "UPDATED"
+        app.after(250, internetLabel.config(text=update_text, fg='#26ef4c'))
+        sorter_initialization = True
+        print("IP LIST SORTED")
+    else:  # User running first time
+        checkUpdate('ipSorter')
+    controlButtons('normal')
 
 
-def ruleMakerBlock(*argv, rule_name="@Overwatch Block"):  # Used to block IP range
-    ip_range = ""
-    for arg in argv:
-        if len(argv) > 1:
-            ip_range += arg + ","
+def controlButtons(command):  # 'disabled' or 'normal' buttons
+    PlayMEButton['state'] = command
+
+    PlayEUButton['state'] = command
+
+    PlayNAWESTButton['state'] = command
+
+    PlayNAEASTButton['state'] = command
+
+    PlayAustraliaButton['state'] = command
+
+    ClearBlocksButton['state'] = command
+
+    DonationButton['state'] = command
+
+
+def is_connect():
+    global internetConnection, internet_initialization
+    try:
+        socket.create_connection(("www.google.com", 80))
+        internetConnection = True
+    except OSError:
+        internetConnection = False
+
+
+def request_raw_file(url, msg_fail):
+    try:
+        r = requests.get(url).content.decode('utf-8')
+    except requests.exceptions.RequestException as e:  # This is the correct syntax
+        update_text = msg_fail
+        app.after(250, internetLabel.config(text=update_text, fg='#ef2626'))
+        checkUpdate()
+        raise SystemExit(e)
+    return r
+
+
+def createTextFile(file_name, contents, progressbar=False):
+    # Contents can be a string or a list of strings must end with \n except last element in the list
+    with open(localappdata_path + '\\' + file_name + '.txt', "w") as text_file:
+        if isinstance(contents, list):
+            text_file.writelines(contents)
         else:
-            ip_range = arg
-    commands = 'advfirewall firewall add rule name="' + rule_name + '" Dir=In Action=Block RemoteIP=' + ip_range
-    shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
-    commands = 'advfirewall firewall add rule name="' + rule_name + '" Dir=Out Action=Block RemoteIP=' + ip_range
-    shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
+            text_file.write(contents)
+    if progressbar:
+        progressBar.place(x=360, y=465)
+        progressBar['value'] += 10
+
+
+def updateIp():
+    global updating_state, sorter_initialization, checkForUpdate_initialization
+    controlButtons('disabled')
+    if internetConnection:
+        updating_state = True
+        update_text = "UPDATING..."
+        internetLabel.config(text=update_text, fg='#ddee4a')
+        msg_fail = "CONNECTION FAILED... Trying to update"
+        createTextFile('BlockingConfig', request_raw_file(BlockingConfig_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_EU', request_raw_file(Ip_ranges_EU_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_ME', request_raw_file(Ip_ranges_ME_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_AS_Singapore', request_raw_file(Ip_ranges_AS_Singapore_url, msg_fail),
+                       progressbar=True)
+        createTextFile('Ip_ranges_Australia', request_raw_file(Ip_ranges_Australia_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_Brazil', request_raw_file(Ip_ranges_Brazil_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_NA_East', request_raw_file(Ip_ranges_NA_East_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_NA_West', request_raw_file(Ip_ranges_NA_West_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_NA_central', request_raw_file(Ip_ranges_NA_central_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_AS_Japan', request_raw_file(Ip_ranges_AS_Japan_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_AS_1', request_raw_file(Ip_ranges_AS_1_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_AS_Taiwan', request_raw_file(Ip_ranges_AS_Taiwan_url, msg_fail), progressbar=True)
+        createTextFile('Ip_ranges_AS_Korea', request_raw_file(Ip_ranges_AS_Korea_url, msg_fail), progressbar=True)
+        createTextFile('IP_version', request_raw_file(ip_version_url, msg_fail), progressbar=True)
+        progressBar.lower()
+        print("Updated")
+        updating_state = False
+        checkForUpdate_initialization = False
+        ipSorter()
+    else:
+        update_text = "Please check your internet connection to download servers ip"
+        internetLabel.config(text=update_text, fg='#ddee4a')
+
+
+def checkUpdate(thread_type='mainThread'):  # A function called at the start of the program to check for update
+    global isUpdated, updating_state, checkForUpdate_initialization
+    is_connect()
+    print("Checking for updates")
+    if internetConnection:
+        if isdir(localappdata_path) and path.exists(ip_version_path):
+            with open(ip_version_path, "r") as reader:  # Read Ip_version.txt from GitHub and analyze
+                for line in reader.readlines():
+                    if len(line) > 1:
+                        msg_fail = "Update check failed"
+                        ip_version_request = request_raw_file(ip_version_url, msg_fail)
+                        ip_version_request = linesep.join([s for s in ip_version_request.splitlines() if s])
+                        line = linesep.join([s for s in line.splitlines() if s])
+                        print("Line length: ", len(line))
+                        print("ip length: ", len(ip_version_request))
+                        if ip_version_request == line:
+                            update_text = "UPDATED"
+                            app.after(250, internetLabel.config(text=update_text, fg='#26ef4c'))
+                        else:
+                            update_text = "NOT UPDATED"
+                            app.after(250, internetLabel.config(text=update_text, fg='#ef2626'))
+                            threading.Thread(target=updateIp, daemon=True).start()
+        else:  # Make directory and call updateIp
+            update_text = "FIRST TIME RUNNING.. UPDATING"
+            app.after(250, internetLabel.config(text=update_text, fg='#ddee4a'))
+            if not exists(localappdata_path):
+                mkdir(localappdata_path)  # Make directory
+            threading.Thread(target=updateIp, daemon=True).start()
+    else:
+        if not exists(ip_version_path):
+            controlButtons('disabled')
+            update_text = "CONNECTION FAILED... Trying to update"
+            app.after(250, internetLabel.config(text=update_text, fg='#ef2626'))
+            app.after(1000, checkUpdate)
+        else:
+            update_text = "NO INTERNET MIGHT BE NOT LATEST IP LIST VERSION"
+            app.after(250, internetLabel.config(text=update_text, fg='#ddee4a'))
+    if thread_type == 'mainThread':  # If the function is called from main thread call it again after 5 mints
+        app.after(5000 * 60, checkUpdate)
+
+
+def ruleMakerBlock(server_exception, np_ips, block_exception=True, rule_name='@Overwatch Block'):
+    # Used to block IP range
+    # np_ips is number of ip ranges that included in one function
+    # server_exception is the only server to not block can be a list or string
+    # If block_exception set to false then the server_exception is blocked ONLY
+    controlButtons('disabled')
+    x = 0
+    temp_ip_ranges = []
+    size_of_ip_range = 0
+    if not block_exception:
+        for server in Ip_ranges_dic:
+            if (server in server_exception):
+                for ip in Ip_ranges_dic[server]:
+                    temp_ip_ranges.append(ip)
+                blockIpRange(temp_ip_ranges, rule_name)
+                print("One rule created")
+                checkIfActive()
+                controlButtons('normal')
+                return
+    for server in Ip_ranges_dic:
+        if not (server in server_exception):
+            for ip in Ip_ranges_dic[server]:
+                temp_ip_ranges.append(ip)
+                size_of_ip_range += 1
+            temp_ip_ranges.append(',')
+    size_of_ip_range = int(size_of_ip_range / 2)
+    print(size_of_ip_range)
+    if size_of_ip_range <= np_ips:
+        blockIpRange(temp_ip_ranges, rule_name)
+        print("One rule created")
+    else:
+        temp_ip_ranges.clear()
+        for indexServer, server in enumerate(Ip_ranges_dic):
+            if not (server in server_exception):
+                print("Server: ", server, "is not: ", server_exception)
+                for indexIp, ip in enumerate(Ip_ranges_dic[server]):
+                    temp_ip_ranges.append(ip)
+                    if int(len(temp_ip_ranges) / 2) == np_ips:  # /2 because each range separated by ','
+                        x += 1
+                        blockIpRange(temp_ip_ranges, rule_name)
+                        temp_ip_ranges.clear()
+                    if indexServer == len(Ip_ranges_dic) - 1 and indexIp == len(Ip_ranges_dic[server]) - 1:
+                        x += 1
+                        print("Last index")
+                        blockIpRange(temp_ip_ranges, rule_name)
+        print(str(x) + " Rules created")
+        checkIfActive()
+        controlButtons('normal')
+
+
+def blockIpRange(ip_list, rule_name):
+    ip_string = ''.join(ip_list)
+    if ip_string[1:] == ',':
+        ip_string = ip_string[1:]
+    if ip_string[len(ip_string) - 1] == ',':
+        ip_string = ip_string[:-1]
+    if not ip_string == '':
+        if tunnel_option:
+            program = ' program=' + '"' + overwatch_path + '"'
+        else:
+            program = ''
+        commands = 'advfirewall firewall add rule name="' \
+                   + rule_name + '"' + program + \
+                   ' Dir=In Action=Block RemoteIP=' \
+                   + ip_string
+        shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
+        commands = 'advfirewall firewall add rule name="' \
+                   + rule_name + '"' + program + \
+                   ' Dir=Out Action=Block RemoteIP=' \
+                   + ip_string
+        shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
 
 
 def ruleDelete(rule_name):  # Delete rule by exact name, name must be a string '' or list of strings
@@ -132,107 +341,152 @@ def ruleDelete(rule_name):  # Delete rule by exact name, name must be a string '
 
 
 def checkIfActive():  # To check if server is blocked or not
-    # pingServers()
-    servers_active_rule_list = ['"@ME_OW_SERVER_BLOCKER"', '"@NAEAST_OW_SERVER_BLOCKER"', '"@NAWEST_OW_SERVER_BLOCKER"',
-                                '"@EU_OW_SERVER_BLOCKER"', '"@AU_OW_SERVER_BLOCKER"']
-    for rule in servers_active_rule_list:
-        command = 'netsh advfirewall firewall show rule name=' + rule
-        proc = Popen(command, creationflags=CREATE_NEW_CONSOLE, stdout=PIPE)
-        output = proc.communicate()[0]
-        rules_existence = str(output)
-        rules_existence = rules_existence.find('Rule Name:')  # To avoid processing useless bytes
-        if rules_existence == 6:  # Position of the Rule Name string
-            output = str(output.strip().decode("utf-8"))
-            temp_rule = rule.replace('"', "")
-            if temp_rule in output:
-                filtered = output.rpartition('_')[0].replace(" ", "").replace("RuleName:@", "").replace("_OW_SERVER",
-                                                                                                        "")
-                if filtered == 'ME':
-                    blockingLabel.config(text='ME BLOCKED', bg='#282828', fg='#ef2626', font=futrabook_font)
-                    break
-                else:
+    servers_active_rule_list = ['ME_OW_SERVER_BLOCKER', 'NAEAST_OW_SERVER_BLOCKER', 'NAWEST_OW_SERVER_BLOCKER',
+                                'EU_OW_SERVER_BLOCKER', 'AU_OW_SERVER_BLOCKER', 'Australia_OW_SERVER_BLOCKER']
+    command_list = ['netsh', 'advfirewall', 'firewall', 'show', 'rule', 'name=all']
+
+    output = run(command_list, capture_output=True, text=True)
+    output = str(output.stdout)
+    for rule_name in servers_active_rule_list:
+        rules_existence = output.find(rule_name)
+        if rules_existence > 0:
+            filtered = rule_name.rpartition('_')[0].replace(" ", "").replace("RuleName:@", "").replace("_OW_SERVER",
+                                                                                                       "")
+            if filtered == 'ME':
+                blockingLabel.config(text='ME BLOCKED', bg='#282828', fg='#ef2626', font=futrabook_font)
+                return
+            else:
+                if len(filtered) < 8:
                     filtered = filtered[0:2] + ' ' + filtered[2:]
-                    label_text = 'PLAYING ON ' + filtered
-                    blockingLabel.config(text=label_text, bg='#282828', fg='#26ef4c',
-                                         font=futrabook_font)
-                    break
-        blockingLabel.config(text='ALL UNBLOCKED (DEFAULT SETTINGS)', fg='#ddee4a')
+                label_text = 'PLAYING ON ' + filtered
+                blockingLabel.config(text=label_text, bg='#282828', fg='#26ef4c',
+                                     font=futrabook_font)
+                return
+    blockingLabel.config(text='ALL UNBLOCKED (DEFAULT SETTINGS)', fg='#ddee4a')
+
+
+def tunnel():  # Handle tunnelling options for Overwatch.exe
+    global overwatch_path, tunnel_option
+    checkbotton_state = tunnelCheckBox_state.get()
+    print("Check buttons state =  ", str(checkbotton_state))
+    if checkbotton_state == 1:
+        if exists(overwatch_path):
+            print("Game detected")
+            createTextFile('Options', 'Tunnel=True', False)
+            tunnel_option = True
+        else:
+            app.overwatch = filedialog.askopenfilename(initialdir='C:\\',
+                                                       title='Select Overwatch\_retail_\Overwatch.exe ',
+                                                       filetypes=(("Select Overwatch\_retail_\Overwatch.exe",
+                                                                   "Overwatch.exe"),))
+            existance_overwatch = app.overwatch.find("/_retail_/Overwatch.exe")
+            if existance_overwatch > 0:
+                overwatch_path = app.overwatch.replace('/', "\\")
+                tunnel_option = True
+                print("Overwatch path is:  " + overwatch_path)
+                createTextFile('Options', ['Tunnel=True\n', overwatch_path], False)
+            else:
+                createTextFile('Options', 'Tunnel=False', False)
+                tunnelCheckBox_state.set(0)
+    else:
+        createTextFile('Options', 'Tunnel=False', False)
+        tunnel_option = False
+
+
+def checkOptions():
+    global tunnel_option, overwatch_path
+    if exists(localappdata_path + '\\Options.txt'):
+        with open(localappdata_path + '\\Options.txt', "r") as reader:
+            options = reader.readlines()
+        if options[0].strip() == 'Tunnel=True':
+            tunnel_option = True
+        if len(options) > 1:
+            temp_path = options[1].strip()
+            overwatch_path = temp_path
+            tunnel_option = True
+
+    else:
+        tunnel_option = False
+    return tunnel_option
+
+
+def blockingConfig(server_name):
+    global blockingConfigDic
+    temp_block_config_list = []
+    if exists(localappdata_path + '\\BlockingConfig.txt'):
+        with open(localappdata_path + '\\BlockingConfig.txt', "r") as reader:
+            for line in reader.readlines():
+                if '@' in line:
+                    if 'ipRangeName::' + server_name in line:
+                        indexes = [pos for pos, char in enumerate(line) if char == "@"]
+                        if len(indexes) > 1:
+                            for i in range(len(indexes)):
+                                if i != len(indexes) - 1:
+                                    temp_block_config_list.append(
+                                        line[indexes[i]:indexes[i + 1]].strip('\n').strip('@'))
+                                else:
+                                    temp_block_config_list.append(line[indexes[-i]:].strip('\n').strip('@'))
+                        else:
+                            temp_block_config_list.append(line[indexes[0]:].strip('\n').strip('@'))
+                        print("String blocking server: ", server_name, "want to exclude", temp_block_config_list)
+                        blockingConfigDic[server_name] = temp_block_config_list
 
 
 def blockALL():  # This function is for testing reasons only DO NOT USE.
     unblockALL()
     blockingLabel.config(text='ALL BLOCKED', fg='#ef2626')
 
-    # Block ALL
-
 
 def blockMEServer():  # It removes any rules added by blockserver function
     unblockALL()
-    blockingLabel.config(text='ME BLOCKED', fg='#ef2626')
-    # commands = 'advfirewall firewall add rule name="@ME_OW_SERVER_BLOCKER" Dir=Out Action=Allow RemoteIP=' + Ip_ranges_EU
-    # shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
-
-    # Block ME
-    ruleMakerBlock(Ip_ranges_ME)
+    blockingLabel.config(text='WORKING ON IT', fg='#26ef4c')
+    commands = 'advfirewall firewall add rule name="@ME_OW_SERVER_BLOCKER" Dir=Out Action=Allow'
+    shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
+    threading.Thread(target=ruleMakerBlock, args=(blockingConfigDic['Ip_ranges_ME'], 467,),
+                     daemon=True, kwargs={'block_exception': False}).start()  # Follow main thread
 
 
 def PlayAustralia_server():
     unblockALL()
-    blockingLabel.config(text='PLAYING ON Australia', fg='#26ef4c')
-    commands = 'advfirewall firewall add rule name="@AU_OW_SERVER_BLOCKER" Dir=Out Action=Allow RemoteIP=' + Ip_ranges_oc
+    blockingLabel.config(text='WORKING ON IT', fg='#26ef4c')
+    commands = 'advfirewall firewall add rule name="@Australia_OW_SERVER_BLOCKER" Dir=Out Action=Allow'
     shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
-
-    ruleMakerBlock(Ip_ranges_ME, Ip_ranges_EU2, Ip_ranges_AS_1, Ip_ranges_EU1, Ip_ranges_NA_East, Ip_ranges_NA_West1,
-                   Ip_ranges_NA_West2,
-                   Ip_ranges_NA_West3
-                   , Ip_ranges_AS_Japan, Ip_ranges_AS_Korea, Ip_ranges_AS_Taiwan,
-                   Ip_ranges_SA, Ip_ranges_AS_Singapore1, Ip_ranges_NA_central, Ip_ranges_AS_Singapore2)
+    threading.Thread(target=ruleMakerBlock, args=(blockingConfigDic['Ip_ranges_Australia'], 467,),
+                     daemon=True).start()  # Follow main thread
 
 
 def playNAEast_server():
     unblockALL()
-    blockingLabel.config(text='PLAYING ON NA EAST', fg='#26ef4c')
-    commands = 'advfirewall firewall add rule name="@NAEAST_OW_SERVER_BLOCKER" Dir=Out Action=Allow RemoteIP=' + Ip_ranges_NA_East
+    blockingLabel.config(text='WORKING ON IT', fg='#26ef4c')
+    commands = 'advfirewall firewall add rule name="@NAEAST_OW_SERVER_BLOCKER" Dir=Out Action=Allow'
     shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
-
-    # Block ME, EU, NA West, AS
-    ruleMakerBlock(Ip_ranges_ME, Ip_ranges_EU2, Ip_ranges_AS_1, Ip_ranges_EU1, Ip_ranges_NA_West1, Ip_ranges_NA_West2,
-                   Ip_ranges_NA_West3
-                   , Ip_ranges_AS_Japan, Ip_ranges_AS_Korea, Ip_ranges_AS_Taiwan,
-                   Ip_ranges_SA, Ip_ranges_AS_Singapore1, Ip_ranges_AS_Singapore2, Ip_ranges_NA_central, Ip_ranges_oc)
+    threading.Thread(target=ruleMakerBlock, args=(blockingConfigDic['Ip_ranges_NA_East'], 467,),
+                     daemon=True).start()  # Follow main thread
 
 
 def playNAWest_server():
     unblockALL()
-    blockingLabel.config(text='PLAYING ON NA WEST', fg='#26ef4c')
-    commands = 'advfirewall firewall add rule name="@NAWEST1_OW_SERVER_BLOCKER" Dir=Out Action=Allow RemoteIP=' + Ip_ranges_NA_West1
+    blockingLabel.config(text='WORKING ON IT', fg='#26ef4c')
+    commands = 'advfirewall firewall add rule name="@NAWEST_OW_SERVER_BLOCKER" Dir=Out Action=Allow'
     shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
-    commands = 'advfirewall firewall add rule name="@NAWEST2_OW_SERVER_BLOCKER" Dir=Out Action=Allow RemoteIP=' + Ip_ranges_NA_West2
-    shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
-
-    ruleMakerBlock(Ip_ranges_ME, Ip_ranges_EU2, Ip_ranges_AS_1, Ip_ranges_EU1, Ip_ranges_AS_Japan, Ip_ranges_AS_Korea,
-                   Ip_ranges_AS_Taiwan,
-                   Ip_ranges_SA, Ip_ranges_AS_Singapore1, Ip_ranges_AS_Singapore2, Ip_ranges_NA_central,
-                   Ip_ranges_NA_East, Ip_ranges_oc)
+    threading.Thread(target=ruleMakerBlock, args=(blockingConfigDic['Ip_ranges_NA_West'], 467,),
+                     daemon=True).start()  # Follow main thread
 
 
 def playEU_server():
     unblockALL()
-    blockingLabel.config(text='PLAYING ON EU', fg='#26ef4c')
-    commands = 'advfirewall firewall add rule name="@EU_OW_SERVER_BLOCKER" Dir=Out Action=Allow RemoteIP=' + Ip_ranges_EU1
+    blockingLabel.config(text='WORKING ON IT', fg='#26ef4c')
+    commands = 'advfirewall firewall add rule name="@EU_OW_SERVER_BLOCKER" Dir=Out Action=Allow'
     shell.ShellExecuteEx(lpVerb='runas', lpFile='netsh.exe', lpParameters=commands)
-
-    ruleMakerBlock(Ip_ranges_ME, Ip_ranges_NA_West1, Ip_ranges_AS_1, Ip_ranges_NA_West2
-                   , Ip_ranges_AS_Japan, Ip_ranges_AS_Korea, Ip_ranges_AS_Taiwan,
-                   Ip_ranges_SA, Ip_ranges_AS_Singapore1, Ip_ranges_AS_Singapore2, Ip_ranges_NA_central, Ip_ranges_oc,
-                   Ip_ranges_NA_East)
+    threading.Thread(target=ruleMakerBlock, args=(blockingConfigDic['Ip_ranges_EU'], 467,),
+                     daemon=True).start()  # Follow main thread
 
 
 def unblockALL():
     blockingLabel.config(text='ALL UNBLOCKED (DEFAULT SETTINGS)', fg='#ddee4a')
     list_rule_names = ["@NAEAST_OW_SERVER_BLOCKER", "@EU_OW_SERVER_BLOCKER", "@ME_OW_SERVER_BLOCKER",
-                       "@NAWEST1_OW_SERVER_BLOCKER", "@AU_OW_SERVER_BLOCKER", "@NAWEST2_OW_SERVER_BLOCKER"
-        , "@Overwatch Block", "@NAWEST_OW_SERVER_BLOCKER"]
+                       "@NAWEST1_OW_SERVER_BLOCKER", "@AU_OW_SERVER_BLOCKER", "@NAWEST2_OW_SERVER_BLOCKER",
+                       "@Overwatch Block", "@NAWEST_OW_SERVER_BLOCKER", "@Australia_OW_SERVER_BLOCKER"]
     ruleDelete(list_rule_names)
 
 
@@ -245,9 +499,11 @@ blockingLabel = Label(app, text='', bg='#282828', fg='#ddee4a', font=futrabook_f
 blockingLabel.grid(row=0, column=0)
 blockingLabel.place(x=250, y=440, anchor="center")
 
-# pingLabel = Label(app, text='', bg='#282828', fg='#ddee4a', font=futrabook_font)
-# pingLabel.grid(row=0, column=0)
-# pingLabel.place(x=250, y=430, anchor="center")
+internetLabel = Label(app, text='', bg='#282828', fg='#26ef4c', font=futrabook_font)
+internetLabel.grid(row=0, column=0)
+internetLabel.place(x=250, y=420, anchor="center")
+
+progressBar = ttk.Progressbar(app, orient=HORIZONTAL, length=130, mode='determinate')
 
 # Buttons
 PlayMEButton = Button(app, image=button_img_ME, font=futrabook_font, command=blockMEServer,
@@ -278,7 +534,21 @@ DonationButton = Button(app, image=button_img_donation, font=futrabook_font, com
                         bg='#282828', fg='#282828', borderwidth=0, activebackground='#282828')
 DonationButton.place(x=420, y=360, height=73, width=68)
 
+# Check box
+tunnelCheckBox_state = IntVar()
+tunnelCheckBox = Checkbutton(app, text="Only affect Overwatch ", font=futrabook_font, activebackground='#282828',
+                             bg='#282828', fg='#26ef4c', borderwidth=0, variable=tunnelCheckBox_state, command=tunnel)
+
 # Start Program
 iconMaker()
-checkIfActive()
+ipSorter_thread = threading.Thread(target=ipSorter, daemon=True)  # Follow main thread
+ipSorter_thread.start()
+
+checkIfActive_thread = threading.Thread(target=checkIfActive, daemon=True).start()  # Follow main thread
+checkUpdate.thread = threading.Thread(target=checkUpdate, daemon=True).start()  # Follow main thread
+
+tunnelCheckBox.place(x=0, y=475)
+if checkOptions():
+    tunnelCheckBox.select()
+
 app.mainloop()
